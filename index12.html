@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pixeles con ondas y atracción</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      background: black;
+      overflow: hidden;
+      width: 100%; height: 100%;
+      touch-action: none; /* evita scroll en mobile */
+    }
+    svg {
+      width: 100%; height: 100%;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <svg id="canvas">
+    <defs id="defs"></defs>
+  </svg>
+
+  <script>
+    const svg = document.getElementById("canvas");
+    const defs = document.getElementById("defs");
+    const pixels = [];
+    const surfaces = [];
+    const spheres = [];
+    const waves = []; // ondas concéntricas
+    const numPixels = 300;
+
+    class Pixel {
+      constructor() {
+        this.size = 4;
+        this.x = Math.random() * window.innerWidth;
+        this.y = Math.random() * window.innerHeight;
+        this.vx = (Math.random() - 0.5) * 3;
+        this.vy = (Math.random() - 0.5) * 3;
+        this.marginsTouched = 0;
+        this.ballistic = false;
+
+        this.rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        this.rect.setAttribute("width", this.size);
+        this.rect.setAttribute("height", this.size);
+        this.rect.setAttribute("fill", "white");
+        svg.appendChild(this.rect);
+      }
+
+      move() {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.x <= 0 || this.x + this.size >= window.innerWidth) {
+          this.vx *= -1;
+          this.marginsTouched++;
+        }
+        if (this.y <= 0 || this.y + this.size >= window.innerHeight) {
+          this.vy *= -1;
+          this.marginsTouched++;
+        }
+
+        if (this.marginsTouched >= 3 && !this.ballistic) {
+          this.ballistic = true;
+        }
+
+        if (this.ballistic) {
+          this.vy += 0.1; // gravedad
+          this.vx *= 0.999; // resistencia
+        }
+
+        this.rect.setAttribute("x", this.x);
+        this.rect.setAttribute("y", this.y);
+      }
+    }
+
+    function createWave(x, y) {
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", x);
+      circle.setAttribute("cy", y);
+      circle.setAttribute("r", "0");
+      circle.setAttribute("stroke", "white");
+      circle.setAttribute("stroke-width", "2");
+      circle.setAttribute("fill", "none");
+      svg.appendChild(circle);
+
+      waves.push({ circle, r: 0, opacity: 1, x, y });
+    }
+
+    for (let i = 0; i < numPixels; i++) {
+      pixels.push(new Pixel());
+    }
+
+    function animate() {
+      pixels.forEach(p => p.move());
+
+      // Animar ondas concéntricas
+      for (let i = waves.length - 1; i >= 0; i--) {
+        const w = waves[i];
+        w.r += 3;
+        w.opacity -= 0.01;
+
+        w.circle.setAttribute("r", w.r);
+        w.circle.setAttribute("stroke-opacity", w.opacity);
+
+        if (w.opacity <= 0) {
+          svg.removeChild(w.circle);
+          waves.splice(i, 1);
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    function onClickOrTouch(x, y) {
+      // Crear ondas concéntricas
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => createWave(x, y), i * 100);
+      }
+
+      // Dirigir todos los píxeles hacia el punto
+      pixels.forEach(p => {
+        const dx = x - (p.x + p.size / 2);
+        const dy = y - (p.y + p.size / 2);
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const speed = 2; // velocidad deseada
+        p.vx = (dx / dist) * speed;
+        p.vy = (dy / dist) * speed;
+      });
+    }
+
+    // Eventos click y touch
+    svg.addEventListener("mousedown", e => onClickOrTouch(e.clientX, e.clientY));
+    svg.addEventListener("touchstart", e => {
+      if (e.touches.length > 0) {
+        const t = e.touches[0];
+        onClickOrTouch(t.clientX, t.clientY);
+      }
+    });
+  </script>
+</body>
+</html>
